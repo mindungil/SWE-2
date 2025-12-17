@@ -1,0 +1,17 @@
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Secrets
+.env
+*.pem
+*.key
+
+# Docker
+docker-data/
+docker-volumes/
+
+# Logs
+*.log
+
