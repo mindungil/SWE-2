@@ -11,6 +11,12 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
+### Migrations (Alembic)
+
+- Edit `.env` if you want a different database URL (defaults to SQLite under `data/app.db`).
+- Run migrations: `alembic upgrade head`
+- Create new migration (after model changes): `alembic revision --autogenerate -m "desc"`
+
 ## Example
 
 - `GET /health` – health check
