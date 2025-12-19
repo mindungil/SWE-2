@@ -24,6 +24,7 @@ uvicorn app.main:app --reload
 - `POST /api/meeting-rooms/bookings` – create meeting room booking (Bearer token required)
 - `POST /api/laptop-seats/bookings` – create laptop seat booking with 4h daily limit (Bearer token required)
 - `POST /api/laptop-seats/bookings/random` – create laptop seat booking with random available seat (Bearer token required)
+- `GET /api/overview?date=YYYY-MM-DD` – real-time status of meeting rooms and laptop seats
 - `GET /items` – list items
 - `POST /items` – create an item (`{ \"name\": \"Widget\", \"description\": \"Demo\" }`)
 - `GET /items/{id}` – fetch one item
