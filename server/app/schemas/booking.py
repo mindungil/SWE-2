@@ -31,3 +31,26 @@ class MeetingRoomBookingRead(BaseModel):
     start_time: datetime
     end_time: datetime
     participants: List[BookingParticipantInfo]
+
+
+class LaptopSeatBookingCreate(BaseModel):
+    seat_number: int
+    date: date
+    start_time: time
+    end_time: time
+
+
+class LaptopSeatBookingRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    booking_id: int
+    facility_id: int
+    seat_number: int
+    start_time: datetime
+    end_time: datetime
+
+
+class LaptopSeatRandomBookingCreate(BaseModel):
+    date: date
+    start_time: time
+    end_time: time
