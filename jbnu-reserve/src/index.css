@@ -1,0 +1,4 @@
+html, body, #root { height: 100%; }
+body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", Arial, sans-serif; }
+* { box-sizing: border-box; }
+a { color: inherit; text-decoration: none; }
