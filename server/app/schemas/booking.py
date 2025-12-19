@@ -54,3 +54,12 @@ class LaptopSeatRandomBookingCreate(BaseModel):
     date: date
     start_time: time
     end_time: time
+
+
+class MyBooking(BaseModel):
+    booking_id: int
+    resource_type: str
+    resource_number: int
+    start_time: datetime
+    end_time: datetime
+    status: str
