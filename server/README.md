@@ -20,6 +20,8 @@ uvicorn app.main:app --reload
 ## Example
 
 - `GET /health` – health check
+- `POST /api/login` – verify `student_id` + `birth`, returns JWT (`{"student_id": "202312345", "birth": "2000-01-01"}`)
+- `POST /api/meeting-rooms/bookings` – create meeting room booking (Bearer token required)
 - `GET /items` – list items
 - `POST /items` – create an item (`{ \"name\": \"Widget\", \"description\": \"Demo\" }`)
 - `GET /items/{id}` – fetch one item
