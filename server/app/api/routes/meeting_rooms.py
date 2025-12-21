@@ -2,7 +2,6 @@ from datetime import datetime, time, timedelta
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -23,17 +22,41 @@ def _combine_datetime(target_date, target_time):
     return datetime.combine(target_date, target_time)
 
 
-def _count_user_bookings(db: Session, user: User, day_start: datetime, day_end: datetime) -> int:
-    return (
-        db.query(func.count(Booking.id))
+def _sum_user_booking_hours(db: Session, user: User, period_start: datetime, period_end: datetime) -> float:
+    bookings = (
+        db.query(Booking)
         .filter(
             Booking.user_student_id == user.student_id,
             Booking.status == BookingStatus.CONFIRMED,
-            Booking.start_time >= day_start,
-            Booking.start_time < day_end,
+            Booking.start_time >= period_start,
+            Booking.start_time < period_end,
         )
-        .scalar()
+        .all()
     )
+    total_hours = 0.0
+    for booking in bookings:
+        total_hours += (booking.end_time - booking.start_time).total_seconds() / 3600
+    return total_hours
+
+
+def _enforce_user_meeting_limits(
+    db: Session,
+    user: User,
+    start_dt: datetime,
+    end_dt: datetime,
+    day_start: datetime,
+    day_end: datetime,
+    week_start: datetime,
+    week_end: datetime,
+) -> None:
+    duration_hours = (end_dt - start_dt).total_seconds() / 3600
+    daily_hours = _sum_user_booking_hours(db, user, day_start, day_end) + duration_hours
+    if user.daily_limit_meeting and daily_hours > user.daily_limit_meeting:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Daily meeting room limit exceeded.")
+
+    weekly_hours = _sum_user_booking_hours(db, user, week_start, week_end) + duration_hours
+    if user.weekly_limit_meeting and weekly_hours > user.weekly_limit_meeting:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Weekly meeting room limit exceeded.")
 
 
 @router.post("/bookings", response_model=MeetingRoomBookingRead, status_code=status.HTTP_201_CREATED)
@@ -108,17 +131,14 @@ def create_meeting_room_booking(
 
     day_start = _combine_datetime(payload.date, time.min)
     day_end = _combine_datetime(payload.date + timedelta(days=1), time.min)
-    daily_count = _count_user_bookings(db, current_user, day_start, day_end)
-    if current_user.daily_limit_meeting and daily_count >= current_user.daily_limit_meeting:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Daily meeting room limit exceeded.")
-
     week_start_date = payload.date - timedelta(days=payload.date.weekday())
     week_end_date = week_start_date + timedelta(days=7)
     week_start = _combine_datetime(week_start_date, time.min)
     week_end = _combine_datetime(week_end_date, time.min)
-    weekly_count = _count_user_bookings(db, current_user, week_start, week_end)
-    if current_user.weekly_limit_meeting and weekly_count >= current_user.weekly_limit_meeting:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Weekly meeting room limit exceeded.")
+
+    participants_for_limits = [current_user, *companions]
+    for participant in participants_for_limits:
+        _enforce_user_meeting_limits(db, participant, start_dt, end_dt, day_start, day_end, week_start, week_end)
 
     booking = Booking(
         facility_id=facility.id,
