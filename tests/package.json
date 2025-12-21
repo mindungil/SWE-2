@@ -1,0 +1,32 @@
+{
+  "name": "swe-2-playwright-tests",
+  "version": "1.0.0",
+  "description": "Playwright 테스트 스위트 for SWE-2 시설 예약 시스템",
+  "scripts": {
+    "init-db": "./init-db.sh",
+    "start-server": "cd ../server && source .venv/bin/activate && nohup uvicorn app.main:app --reload > /tmp/uvicorn.log 2>&1 &",
+    "test": "npm run init-db && npm run start-server && sleep 3 && playwright test",
+    "test:auth": "npm run init-db && playwright test auth.spec.js",
+    "test:meeting-rooms": "npm run init-db && playwright test meeting_rooms.spec.js",
+    "test:laptop-seats": "npm run init-db && playwright test laptop_seats.spec.js",
+    "test:my-bookings": "npm run init-db && playwright test my_bookings.spec.js",
+    "test:overview": "npm run init-db && playwright test overview.spec.js",
+    "test:integration": "npm run init-db && playwright test integration.spec.js",
+    "test:edge": "npm run init-db && playwright test edge_cases.spec.js",
+    "test:ui": "npm run init-db && playwright test --ui",
+    "test:headed": "npm run init-db && playwright test --headed",
+    "test:debug": "npm run init-db && playwright test --debug",
+    "test:no-init": "playwright test",
+    "report": "playwright show-report"
+  },
+  "keywords": [
+    "playwright",
+    "testing",
+    "api-testing"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  }
+}
