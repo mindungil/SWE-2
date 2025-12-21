@@ -10,6 +10,23 @@ class BookingCompanion(BaseModel):
 
 
 class MeetingRoomBookingCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "room_number": 1,
+                    "date": "2025-12-20",
+                    "start_time": "17:00:00",
+                    "end_time": "18:00:00",
+                    "companions": [
+                        {"student_id": "202312346", "name": "이순신"},
+                        {"student_id": "202312347", "name": "강감찬"},
+                    ],
+                }
+            ]
+        }
+    )
+
     room_number: int
     date: date
     start_time: time
@@ -18,8 +35,8 @@ class MeetingRoomBookingCreate(BaseModel):
 
 
 class BookingParticipantInfo(BaseModel):
-    student_id: str
-    name: str
+    student_id: str = Field(..., examples=["202312345"])
+    name: str = Field(..., examples=["홍길동"])
 
 
 class MeetingRoomBookingRead(BaseModel):
@@ -34,6 +51,19 @@ class MeetingRoomBookingRead(BaseModel):
 
 
 class LaptopSeatBookingCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "seat_number": 37,
+                    "date": "2025-12-20",
+                    "start_time": "17:00:00",
+                    "end_time": "21:00:00",
+                }
+            ]
+        }
+    )
+
     seat_number: int
     date: date
     start_time: time
@@ -51,6 +81,18 @@ class LaptopSeatBookingRead(BaseModel):
 
 
 class LaptopSeatRandomBookingCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "date": "2025-12-20",
+                    "start_time": "17:00:00",
+                    "end_time": "21:00:00",
+                }
+            ]
+        }
+    )
+
     date: date
     start_time: time
     end_time: time
