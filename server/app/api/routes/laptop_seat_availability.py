@@ -18,7 +18,7 @@ router = APIRouter(tags=["laptop_seats"])
 
 @router.get("/api/laptop_seats", response_model=LaptopSeatAvailabilityResponse)
 def get_laptop_seat_availability(
-    payload: LaptopSeatAvailabilityRequest = Body(...),
+    payload: LaptopSeatAvailabilityRequest = Depends(),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> LaptopSeatAvailabilityResponse:

@@ -27,7 +27,7 @@ class Booking(Base):
         Index("ix_bookings_user_time", "user_student_id", "start_time"),
     )
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True, nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
     facility_id = Column(Integer, ForeignKey("facilities.id", ondelete="RESTRICT"), nullable=False)
     user_student_id = Column(String(10), ForeignKey("users.student_id", ondelete="RESTRICT"), nullable=False)
     start_time = Column(DateTime, nullable=False)

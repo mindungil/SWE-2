@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date as DateType
 from datetime import time
 from typing import List
 
@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class LaptopSeatAvailabilityRequest(BaseModel):
-    date: date = Field(..., examples=["2025-12-20"])
+    date: DateType = Field(..., examples=["2025-12-20"])
     start_time: time = Field(..., examples=["13:00"])
     duration: int = Field(..., examples=[2])
 
@@ -17,7 +17,7 @@ class LaptopSeatAvailabilityItem(BaseModel):
 
 
 class LaptopSeatAvailabilityResponse(BaseModel):
-    date: date = Field(..., examples=["2025-12-20"])
+    date: DateType = Field(..., examples=["2025-12-20"])
     start_time: str = Field(..., examples=["13:00"])
     end_time: str = Field(..., examples=["15:00"])
     duration: int = Field(..., examples=[2])
