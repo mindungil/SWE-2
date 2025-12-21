@@ -25,6 +25,7 @@ uvicorn app.main:app --reload
 - `POST /api/meeting-rooms/bookings` – create meeting room booking (Bearer token required)
 - `POST /api/laptop-seats/bookings` – create laptop seat booking with 4h daily limit (Bearer token required)
 - `POST /api/laptop-seats/bookings/random` – create laptop seat booking with random available seat (Bearer token required)
+- `GET /api/laptop_seats` – available laptop seats for a time range (Bearer token required)
 - `GET /api/overview?date=YYYY-MM-DD` – real-time status of meeting rooms and laptop seats
 - `GET /api/my-bookings?status=CONFIRMED` – list your bookings (meeting room + laptop seat) by status (Bearer token required)
 - `DELETE /api/my-bookings/{booking_id}` – cancel your booking if more than 2 hours before start (Bearer token required)

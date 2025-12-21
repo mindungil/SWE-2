@@ -21,6 +21,7 @@ class LaptopSeatStatus(BaseModel):
 
 
 class OverviewResponse(BaseModel):
+    name: str = Field(..., examples=["홍길동"])
     date: date
     checked_at: datetime = Field(..., examples=["2025-12-20T17:17:27"])
     meeting_rooms: List[MeetingRoomStatus]

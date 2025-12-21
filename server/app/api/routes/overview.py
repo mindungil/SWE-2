@@ -3,9 +3,10 @@ from datetime import date, datetime
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_current_user, get_db
 from app.models.booking import Booking, BookingStatus
 from app.models.facility import Facility, FacilityResourceType
+from app.models.user import User
 from app.schemas.overview import (
     LaptopSeatStatus,
     MeetingRoomStatus,
@@ -33,6 +34,7 @@ def _is_booked_for_time(db: Session, facility_id: int, target_dt: datetime) -> b
 @router.get("/api/overview", response_model=OverviewResponse)
 def get_overview(
     date_param: date = Query(..., alias="date"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> OverviewResponse:
     now = datetime.now()
@@ -73,6 +75,7 @@ def get_overview(
     ]
 
     return OverviewResponse(
+        name=current_user.name,
         date=date_param,
         checked_at=now,
         meeting_rooms=meeting_room_statuses,
