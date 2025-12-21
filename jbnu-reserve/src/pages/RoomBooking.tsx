@@ -115,7 +115,7 @@ export default function RoomBooking() {
 
       if (response.status === 201) {
         toast("회의실 예약이 완료되었습니다!", "ok");
-        nav("/profile");
+        nav("/home");
       } else if (response.status === 409) {
         toast(data.detail || "예약 조건에 맞지 않습니다.", "bad");
       } else {
