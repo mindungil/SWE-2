@@ -53,7 +53,27 @@ export default function LaptopBooking() {
   const seats = useMemo(() => Array.from({ length: 70 }, (_, i) => i + 1), []);
   const shown = seats.filter(s => (page === 1 ? s <= 35 : s >= 36));
 
-  const availableStartHours = useMemo(() => Array.from({ length: 8 }, (_, i) => 9 + i), []);
+  const availableStartHours = useMemo(() => {
+    const allHours = Array.from({ length: 8 }, (_, i) => 9 + i); // 09:00 ~ 16:00 기본 선택지
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+  
+    // 선택한 날짜가 오늘인 경우에만 시간 필터링 적용
+    if (date === todayStr) {
+      const currentHour = now.getHours();
+      // 현재 시간보다 1시간 이후부터만 선택 가능하게 필터링 (예: 13시 51분이면 14시부터)
+      return allHours.filter(h => h > currentHour); 
+    }
+  
+    return allHours;
+  }, [date]); // 날짜가 바뀔 때마다 다시 계산
+
+  // 날짜나 시간이 바뀌었을 때, 현재 시점보다 과거라면 가능한 첫 번째 시간으로 자동 보정
+  useEffect(() => {
+    if (availableStartHours.length > 0 && !availableStartHours.includes(startHour)) {
+      setStartHour(availableStartHours[0]); // 선택 가능한 가장 빠른 시간으로 자동 세팅
+    }
+  }, [availableStartHours, startHour]);
 
   const bookSeat = async (seatNo: number, isRandom: boolean) => {
     const startTimeStr = `${String(startHour).padStart(2, "0")}:00`;
@@ -112,7 +132,13 @@ export default function LaptopBooking() {
           <div className="row">
             <div className="field">
               <div className="label">날짜</div>
-              <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <input 
+                className="input" 
+                type="date" 
+                value={date} 
+                min={new Date().toISOString().slice(0, 10)} // 오늘 날짜 이후만 선택 가능하게 제한
+                onChange={(e) => setDate(e.target.value)} 
+              />
             </div>
             <div className="field">
               <div className="label">시작</div>
