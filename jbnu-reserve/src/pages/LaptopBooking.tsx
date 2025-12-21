@@ -4,6 +4,7 @@ import "../styles/app.css";
 import { useToast } from "../ui/Toast";
 import { useStore } from "../state/store";
 import { useNavigate } from "react-router-dom";
+import { apiFetch } from "../api/client";
 
 export default function LaptopBooking() {
   const nav = useNavigate();
@@ -20,24 +21,44 @@ export default function LaptopBooking() {
 
   const hours = useMemo(() => Array.from({ length: 10 }, (_, i) => 9 + i), []);
 
-  const bookSeat = (seatNo: number, random: boolean) => {
-    const res = addReservation({
-      id: crypto.randomUUID(),
-      type: "laptop",
-      date,
-      startHour,
-      durationHours: duration,
-      seatNo,
-      random,
-    });
-    toast(res.msg, res.ok ? "ok" : "bad");
-    if (res.ok) nav("/profile");
+  const bookSeat = async (seatNo: number, isRandom: boolean) => {
+    const startTimeStr = `${String(startHour).padStart(2, "0")}:00`;
+    const endTimeStr = `${String(startHour + duration).padStart(2, "0")}:00`;
+
+    // 랜덤 여부에 따른 엔드포인트 선택
+    const endpoint = isRandom ? "/api/laptop-seats/bookings/random" : "/api/laptop-seats/bookings";
+
+    // 랜덤 예약은 seat_number를 보내지 않음
+    const body = isRandom 
+      ? { date, start_time: startTimeStr, end_time: endTimeStr }
+      : { seat_number: seatNo, date, start_time: startTimeStr, end_time: endTimeStr };
+
+    try {
+      const response = await apiFetch(endpoint, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 201) {
+        // 성공
+        toast(isRandom ? `랜덤 예약 성공! 좌석: ${data.resource_number}` : "좌석 예약 성공!", "ok");
+        nav("/profile");
+      } else if (response.status === 409) {
+        // 충돌케이스
+        // 가용 좌석 없음이나 시간 초과 메시지를 서버에서 준 그대로 출력
+        toast(data.detail || "예약이 불가능한 상태입니다.", "bad");
+      } else {
+        toast(data.detail || "예약 실패", "bad");
+      }
+    } catch (error) {
+      toast("서버와 통신 중 오류가 발생했습니다.", "bad");
+    }
   };
 
   const randomPick = () => {
-    const pool = shown; // 현재 페이지에서만 랜덤
-    const seatNo = pool[Math.floor(Math.random() * pool.length)];
-    bookSeat(seatNo, true);
+    bookSeat(0, true); // 랜덤일 때는 seatNo가 의미 없으므로 0 전달
   };
 
   return (
