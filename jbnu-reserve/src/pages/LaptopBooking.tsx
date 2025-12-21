@@ -31,17 +31,23 @@ export default function LaptopBooking() {
   const fetchStatus = async () => {
     setLoading(true);
     try {
-      const response = await apiFetch(`/api/overview?date=${date}`);
+      // 특정 날짜/시간/기간에 따른 가용 좌석 조회
+      const startTimeStr = `${String(startHour).padStart(2, "0")}:00`;
+      const response = await apiFetch(`/api/laptop_seats?date=${date}&start_time=${startTimeStr}&duration=${duration}`);
+      
       if (response.ok) {
         const data = await response.json();
-        setSeatStatuses(data.laptop_seats); //
+        // 응답 데이터의 available_seats 배열을 상태에 저장
+        setSeatStatuses(data.available_seats); 
       }
+    } catch (error) {
+      toast("좌석 현황을 불러오는데 실패했습니다.", "bad");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchStatus(); }, [date]); // 날짜 바뀔 때마다 갱신
+  useEffect(() => { fetchStatus(); }, [date, startHour, duration]);
 
   const [page, setPage] = useState<1 | 2>(1);
   const seats = useMemo(() => Array.from({ length: 70 }, (_, i) => i + 1), []);
