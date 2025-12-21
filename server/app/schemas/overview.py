@@ -22,6 +22,6 @@ class LaptopSeatStatus(BaseModel):
 
 class OverviewResponse(BaseModel):
     date: date
-    checked_at: datetime
+    checked_at: datetime = Field(..., examples=["2025-12-20T17:17:27"])
     meeting_rooms: List[MeetingRoomStatus]
     laptop_seats: List[LaptopSeatStatus]
