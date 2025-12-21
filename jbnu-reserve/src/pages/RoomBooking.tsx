@@ -34,12 +34,12 @@ export default function RoomBooking() {
   const [roomNo, setRoomNo] = useState<1 | 2 | 3>(1);
 
   const [party, setParty] = useState<PartyMember[]>(
-    Array.from({ length: 5 }, () => ({ name: "", studentId: "" })) // 본인 제외 최대 5명 입력
+    Array.from({ length: 5 }, () => ({ name: "", studentId: "" }))
   );
 
   // todayStr 비교 시에도 로컬 시간 기준 포맷 사용
   const availableStartHours = useMemo(() => {
-    const allHours = Array.from({ length: 9 }, (_, i) => 9 + i); // 09시 ~ 17시
+    const allHours = Array.from({ length: 9 }, (_, i) => 9 + i);
     const now = new Date();
     
     const year = now.getFullYear();
@@ -47,7 +47,6 @@ export default function RoomBooking() {
     const day = String(now.getDate()).padStart(2, "0");
     const todayStr = `${year}-${month}-${day}`;
 
-    // 선택한 날짜가 오늘인 경우에만 시간 필터링 적용
     if (date === todayStr) {
       const currentHour = now.getHours();
       return allHours.filter(h => h > currentHour); 
@@ -55,7 +54,6 @@ export default function RoomBooking() {
     return allHours;
   }, [date]);
 
-  // 시간이 지나 선택한 startHour가 리스트에서 사라지면 자동 보정
   useEffect(() => {
     if (availableStartHours.length > 0 && !availableStartHours.includes(startHour)) {
       setStartHour(availableStartHours[0]);
@@ -63,13 +61,11 @@ export default function RoomBooking() {
   }, [availableStartHours, startHour]);
 
   useEffect(() => {
-    // 17시에 시작하면 2시간 예약은 불가능하므로 1시간으로 강제 변경
     if (startHour >= 17 && duration === 2) {
       setDuration(1);
     }
   }, [startHour, duration]);
 
-  // 실패 케이스에도 filled를 항상 포함시켜서 v.filled 타입 오류 제거
   const validParty = ():
     | { ok: true; filled: PartyMember[] }
     | { ok: false; msg: string; filled: PartyMember[] } => {
@@ -78,7 +74,6 @@ export default function RoomBooking() {
       .map((p) => ({ name: p.name.trim(), studentId: p.studentId.trim() }))
       .filter((p) => p.name || p.studentId);
 
-    // 최소 2명 동반 => 본인 포함 총 3명 이상이 되려면, 동반 입력 2명 이상 필요
     if (filled.length < 2) {
       return { ok: false, msg: "동반 인원 최소 2명을 입력하세요. (본인 포함 3명)", filled: [] };
     }
@@ -96,7 +91,6 @@ export default function RoomBooking() {
     return { ok: true, filled };
   };
 
-  // 내부 submit 함수 수정
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const v = validParty();
@@ -120,11 +114,9 @@ export default function RoomBooking() {
       const data = await response.json();
 
       if (response.status === 201) {
-        // 성공
         toast("회의실 예약이 완료되었습니다!", "ok");
         nav("/profile");
       } else if (response.status === 409) {
-        // 실패
         toast(data.detail || "예약 조건에 맞지 않습니다.", "bad");
       } else {
         toast(data.detail || "예약에 실패했습니다.", "bad");
@@ -159,7 +151,7 @@ export default function RoomBooking() {
                   className="input"
                   type="date"
                   value={date}
-                  min={getMinDate()} // 과거 및 마감된 오늘 날짜 선택 제한 (로컬 시간 적용됨)
+                  min={getMinDate()}
                   onChange={(e) => setDate(e.target.value)}
                 />
               </div>
@@ -213,13 +205,14 @@ export default function RoomBooking() {
 
             <div className="card" style={{ marginTop: 12, background: "#f8fafc" }}>
               <div className="cardTitle" style={{ fontSize: 14 }}>
-                동반 인원 입력 (본인 제외 최대 5명)
+                동반 인원 입력 (본인 포함 최대 6명)
               </div>
               <div className="cardDesc">최소 2명 입력 필요 (본인 포함 3명)</div>
 
               {party.map((p, idx) => (
                 <div className="row" key={idx}>
-                  <div className="field">
+                  {/* style={{ flex: 1 }} 추가로 너비 균등 분배 및 삐져나감 방지 */}
+                  <div className="field" style={{ flex: 1 }}>
                     <div className="label">이름</div>
                     <input
                       className="input"
@@ -230,9 +223,11 @@ export default function RoomBooking() {
                         setParty(next);
                       }}
                       placeholder="홍길동"
+                      style={{ width: "100%" }} // input도 부모에 맞춤
                     />
                   </div>
-                  <div className="field">
+                  {/* style={{ flex: 1 }} 추가 */}
+                  <div className="field" style={{ flex: 1 }}>
                     <div className="label">학번(9자리)</div>
                     <input
                       className="input"
@@ -244,6 +239,7 @@ export default function RoomBooking() {
                       }}
                       placeholder="202012345"
                       inputMode="numeric"
+                      style={{ width: "100%" }} // input도 부모에 맞춤
                     />
                   </div>
                 </div>
@@ -254,7 +250,7 @@ export default function RoomBooking() {
               className="btn btnBlue"
               style={{ width: "100%", marginTop: 12 }}
               type="submit"
-              disabled={availableStartHours.length === 0} // 오늘 남은 시간이 없으면 비활성화
+              disabled={availableStartHours.length === 0}
             >
               {availableStartHours.length > 0 ? "예약하기" : "예약 가능한 시간이 없습니다"}
             </button>
