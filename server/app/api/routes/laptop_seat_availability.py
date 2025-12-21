@@ -56,7 +56,7 @@ def get_laptop_seat_availability(
     available_seats = [
         LaptopSeatAvailabilityItem(
             resource_number=seat.resource_number,
-            is_available="false" if seat.id in booked_seat_ids else "true",
+            is_available=seat.id not in booked_seat_ids,
         )
         for seat in laptop_seats
     ]

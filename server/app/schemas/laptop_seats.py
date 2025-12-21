@@ -13,7 +13,7 @@ class LaptopSeatAvailabilityRequest(BaseModel):
 
 class LaptopSeatAvailabilityItem(BaseModel):
     resource_number: int = Field(..., examples=[1])
-    is_available: str = Field(..., examples=["true"])
+    is_available: bool = Field(..., examples=[True])
 
 
 class LaptopSeatAvailabilityResponse(BaseModel):
