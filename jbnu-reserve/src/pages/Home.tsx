@@ -17,6 +17,18 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const today = new Date().toISOString().split('T')[0];
 
+  const handleLogout = async () => {
+    try {
+      await apiFetch("/api/logout", { method: "POST" });
+    } catch (error) {
+      console.error("로그아웃 API 호출 실패:", error);
+    } finally {
+      localStorage.removeItem("access_token"); 
+      logout(); 
+      nav("/"); // 로그인 페이지로 이동
+    }
+  };
+
   useEffect(() => {
     const fetchStatus = async () => {
       try {
@@ -45,10 +57,10 @@ export default function Home() {
       <div className="container">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "12px 0" }}>
           <div style={{ fontWeight: 900 }}>안녕하세요, {user?.studentId}님</div>
-          <button className="btn btnGhost" style={{ height: 38, padding: "0 12px", borderRadius: 12 }} onClick={() => logout()}>
+            <button className="btn btnGhost" style={{ height: 38, padding: "0 12px", borderRadius: 12 }} onClick={handleLogout}>
             로그아웃
-          </button>
-        </div>
+            </button>
+          </div>
 
         {/* 실시간 현황 요약 */}
         <div className="card" style={{ marginBottom: 16, padding: "12px 16px", backgroundColor: "#f8f9fa", border: "none" }}>
