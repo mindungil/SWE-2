@@ -118,7 +118,7 @@ export default function LaptopBooking() {
       if (response.status === 201) {
         // 성공
         toast(isRandom ? `랜덤 예약 성공! 좌석: ${data.resource_number}` : "좌석 예약 성공!", "ok");
-        nav("/profile");
+        nav("/home");
       } else if (response.status === 409) {
         // 충돌케이스
         // 가용 좌석 없음이나 시간 초과 메시지를 서버에서 준 그대로 출력
