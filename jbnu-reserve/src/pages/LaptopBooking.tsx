@@ -13,7 +13,18 @@ export default function LaptopBooking() {
   const toast = useToast();
   const { addReservation } = useStore();
 
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  // 16시 이후 접속 시 오늘 예약은 더 이상 불가능하므로 내일 날짜를 최소값으로 설정
+  const getMinDate = () => {
+    const now = new Date();
+    if (now.getHours() >= 16) {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(now.getDate() + 1);
+      return tomorrow.toISOString().slice(0, 10);
+    }
+    return now.toISOString().slice(0, 10);
+  };
+
+  const [date, setDate] = useState(() => getMinDate());
   const [startHour, setStartHour] = useState(9);
   const [duration, setDuration] = useState<2 | 4>(2);
 
@@ -136,14 +147,18 @@ export default function LaptopBooking() {
                 className="input" 
                 type="date" 
                 value={date} 
-                min={new Date().toISOString().slice(0, 10)} // 오늘 날짜 이후만 선택 가능하게 제한
+                min={getMinDate()} // 오늘 마감 시 내일부터 선택 가능하게 동적 min 설정
                 onChange={(e) => setDate(e.target.value)} 
               />
             </div>
             <div className="field">
               <div className="label">시작</div>
               <select className="input" value={startHour} onChange={(e) => setStartHour(Number(e.target.value))}>
-                {availableStartHours.map(h => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
+                {availableStartHours.length > 0 ? (
+                  availableStartHours.map(h => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)
+                ) : (
+                  <option disabled>예약 마감</option>
+                )}
               </select>
             </div>
           </div>
@@ -165,38 +180,55 @@ export default function LaptopBooking() {
             </div>
           </div>
 
-          <button className="btn btnPrimary" style={{ width: "100%", margin: "10px 0" }} onClick={randomPick} type="button">
-            랜덤 예약
+          <button 
+            className="btn btnPrimary" 
+            style={{ width: "100%", margin: "10px 0" }} 
+            onClick={randomPick} 
+            type="button"
+            disabled={availableStartHours.length === 0} // 선택 가능 시간 없을 때 비활성화
+          >
+            {availableStartHours.length > 0 ? "랜덤 예약" : "오늘 예약 마감"}
           </button>
 
           <div className="card" style={{ background: "#f8fafc" }}>
-            <div className="cardTitle" style={{ fontSize: 14, marginBottom: 10 }}>좌석 선택 (초록=가능 / 빨강=불가)</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
-              {shown.map(seat => {
-                // 해당 좌석의 사용 가능 여부 확인
-                const status = seatStatuses.find(s => s.resource_number === seat);
-                const isAvailable = status ? status.is_available : false;
+            {availableStartHours.length > 0 ? (
+              <>
+                <div className="cardTitle" style={{ fontSize: 14, marginBottom: 10 }}>좌석 선택 (초록=가능 / 빨강=불가)</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+                  {shown.map(seat => {
+                    // 해당 좌석의 사용 가능 여부 확인
+                    const status = seatStatuses.find(s => s.resource_number === seat);
+                    const isAvailable = status ? status.is_available : false;
 
-                return (
-                  <button
-                    key={seat}
-                    disabled={!isAvailable || loading} // 예약 불가면 클릭 막기
-                    className="btn"
-                    style={{
-                      height: 44,
-                      borderRadius: 12,
-                      background: isAvailable ? "#16a34a" : "#dc2626", // 가능 = 초록, 불가 = 빨강
-                      color: "#fff",
-                      opacity: isAvailable ? 1 : 0.6,
-                      cursor: isAvailable ? "pointer" : "not-allowed"
-                    }}
-                    onClick={() => bookSeat(seat, false)}
-                  >
-                    {seat}
-                  </button>
-                );
-              })}
-            </div>
+                    return (
+                      <button
+                        key={seat}
+                        disabled={!isAvailable || loading} // 예약 불가면 클릭 막기
+                        className="btn"
+                        style={{
+                          height: 44,
+                          borderRadius: 12,
+                          background: isAvailable ? "#16a34a" : "#dc2626", // 가능 = 초록, 불가 = 빨강
+                          color: "#fff",
+                          opacity: isAvailable ? 1 : 0.6,
+                          cursor: isAvailable ? "pointer" : "not-allowed"
+                        }}
+                        onClick={() => bookSeat(seat, false)}
+                      >
+                        {seat}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              // 오늘 예약이 마감되었을 때 안내
+              <div style={{ textAlign: "center", padding: "24px 0", color: "#64748b" }}>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>🌙</div>
+                <div style={{ fontWeight: 700 }}>오늘 예약 가능한 시간이 종료되었습니다.</div>
+                <div style={{ fontSize: 12, marginTop: 4 }}>내일 날짜를 선택하여 예약을 진행해주세요.</div>
+              </div>
+            )}
           </div>
         </div>
       </div>

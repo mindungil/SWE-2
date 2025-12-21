@@ -13,7 +13,18 @@ export default function RoomBooking() {
   const toast = useToast();
   const { addReservation } = useStore();
 
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  // 17시 이후 접속 시 오늘 예약 불가하므로 내일 날짜를 최소값으로 설정
+  const getMinDate = () => {
+    const now = new Date();
+    if (now.getHours() >= 17) {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(now.getDate() + 1);
+      return tomorrow.toISOString().slice(0, 10);
+    }
+    return now.toISOString().slice(0, 10);
+  };
+
+  const [date, setDate] = useState(() => getMinDate());
   const [startHour, setStartHour] = useState(9);
   const [duration, setDuration] = useState<1 | 2>(1);
   const [roomNo, setRoomNo] = useState<1 | 2 | 3>(1);
@@ -22,7 +33,25 @@ export default function RoomBooking() {
     Array.from({ length: 5 }, () => ({ name: "", studentId: "" })) // 본인 제외 최대 5명 입력
   );
 
-  const availableStartHours = useMemo(() => Array.from({ length: 9 }, (_, i) => 9 + i), []); // 09시 ~ 17시
+  // 오늘 날짜인 경우 현재 시간 이후만 선택 가능하게 필터링
+  const availableStartHours = useMemo(() => {
+    const allHours = Array.from({ length: 9 }, (_, i) => 9 + i); // 09시 ~ 17시
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+
+    if (date === todayStr) {
+      const currentHour = now.getHours();
+      return allHours.filter(h => h > currentHour); 
+    }
+    return allHours;
+  }, [date]);
+
+  // 시간이 지나 선택한 startHour가 리스트에서 사라지면 자동 보정
+  useEffect(() => {
+    if (availableStartHours.length > 0 && !availableStartHours.includes(startHour)) {
+      setStartHour(availableStartHours[0]);
+    }
+  }, [availableStartHours, startHour]);
 
   useEffect(() => {
     // 17시에 시작하면 2시간 예약은 불가능하므로 1시간으로 강제 변경
@@ -58,43 +87,43 @@ export default function RoomBooking() {
     return { ok: true, filled };
   };
 
-// 내부 submit 함수 수정
-const submit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  const v = validParty();
-  if (!v.ok) return toast(v.msg, "bad");
+  // 내부 submit 함수 수정
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const v = validParty();
+    if (!v.ok) return toast(v.msg, "bad");
 
-  const startTimeStr = `${String(startHour).padStart(2, "0")}:00`;
-  const endTimeStr = `${String(startHour + duration).padStart(2, "0")}:00`;
+    const startTimeStr = `${String(startHour).padStart(2, "0")}:00`;
+    const endTimeStr = `${String(startHour + duration).padStart(2, "0")}:00`;
 
-  try {
-    const response = await apiFetch("/api/meeting-rooms/bookings", {
-      method: "POST",
-      body: JSON.stringify({
-        room_number: roomNo,
-        date: date,
-        start_time: startTimeStr,
-        end_time: endTimeStr,
-        companions: v.filled.map(p => ({ name: p.name, student_id: p.studentId })),
-      }),
-    });
+    try {
+      const response = await apiFetch("/api/meeting-rooms/bookings", {
+        method: "POST",
+        body: JSON.stringify({
+          room_number: roomNo,
+          date: date,
+          start_time: startTimeStr,
+          end_time: endTimeStr,
+          companions: v.filled.map(p => ({ name: p.name, student_id: p.studentId })),
+        }),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (response.status === 201) {
-      // 성공
-      toast("회의실 예약이 완료되었습니다!", "ok");
-      nav("/profile");
-    } else if (response.status === 409) {
-      // 실패
-      toast(data.detail || "예약 조건에 맞지 않습니다.", "bad");
-    } else {
-      toast(data.detail || "예약에 실패했습니다.", "bad");
+      if (response.status === 201) {
+        // 성공
+        toast("회의실 예약이 완료되었습니다!", "ok");
+        nav("/profile");
+      } else if (response.status === 409) {
+        // 실패
+        toast(data.detail || "예약 조건에 맞지 않습니다.", "bad");
+      } else {
+        toast(data.detail || "예약에 실패했습니다.", "bad");
+      }
+    } catch (error) {
+      toast("서버와 통신 중 오류가 발생했습니다.", "bad");
     }
-  } catch (error) {
-    toast("서버와 통신 중 오류가 발생했습니다.", "bad");
-  }
-};
+  };
 
   return (
     <div className="page">
@@ -121,6 +150,7 @@ const submit = async (e: React.FormEvent) => {
                   className="input"
                   type="date"
                   value={date}
+                  min={getMinDate()} // 과거 및 마감된 오늘 날짜 선택 제한
                   onChange={(e) => setDate(e.target.value)}
                 />
               </div>
@@ -131,11 +161,15 @@ const submit = async (e: React.FormEvent) => {
                   value={startHour}
                   onChange={(e) => setStartHour(Number(e.target.value))}
                 >
-                  {availableStartHours.map((h) => (
-                    <option key={h} value={h}>
-                      {String(h).padStart(2, "0")}:00
-                    </option>
-                  ))}
+                  {availableStartHours.length > 0 ? (
+                    availableStartHours.map((h) => (
+                      <option key={h} value={h}>
+                        {String(h).padStart(2, "0")}:00
+                      </option>
+                    ))
+                  ) : (
+                    <option disabled>예약 마감</option>
+                  )}
                 </select>
               </div>
             </div>
@@ -211,8 +245,9 @@ const submit = async (e: React.FormEvent) => {
               className="btn btnBlue"
               style={{ width: "100%", marginTop: 12 }}
               type="submit"
+              disabled={availableStartHours.length === 0} // 오늘 남은 시간이 없으면 비활성화
             >
-              예약하기
+              {availableStartHours.length > 0 ? "예약하기" : "예약 가능한 시간이 없습니다"}
             </button>
           </form>
         </div>
