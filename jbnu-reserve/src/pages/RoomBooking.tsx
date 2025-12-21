@@ -13,15 +13,19 @@ export default function RoomBooking() {
   const toast = useToast();
   const { addReservation } = useStore();
 
-  // 17시 이후 접속 시 오늘 예약 불가하므로 내일 날짜를 최소값으로 설정
   const getMinDate = () => {
     const now = new Date();
+    // 17시 이후라면 내일 날짜를 계산 (회의실은 17시 마감)
     if (now.getHours() >= 17) {
-      const tomorrow = new Date(now);
-      tomorrow.setDate(now.getDate() + 1);
-      return tomorrow.toISOString().slice(0, 10);
+      now.setDate(now.getDate() + 1);
     }
-    return now.toISOString().slice(0, 10);
+    
+    // YYYY-MM-DD 포맷을 로컬 시간 기준으로 직접 조합
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    
+    return `${year}-${month}-${day}`;
   };
 
   const [date, setDate] = useState(() => getMinDate());
@@ -33,12 +37,17 @@ export default function RoomBooking() {
     Array.from({ length: 5 }, () => ({ name: "", studentId: "" })) // 본인 제외 최대 5명 입력
   );
 
-  // 오늘 날짜인 경우 현재 시간 이후만 선택 가능하게 필터링
+  // todayStr 비교 시에도 로컬 시간 기준 포맷 사용
   const availableStartHours = useMemo(() => {
     const allHours = Array.from({ length: 9 }, (_, i) => 9 + i); // 09시 ~ 17시
     const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
+    
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const todayStr = `${year}-${month}-${day}`;
 
+    // 선택한 날짜가 오늘인 경우에만 시간 필터링 적용
     if (date === todayStr) {
       const currentHour = now.getHours();
       return allHours.filter(h => h > currentHour); 
@@ -150,7 +159,7 @@ export default function RoomBooking() {
                   className="input"
                   type="date"
                   value={date}
-                  min={getMinDate()} // 과거 및 마감된 오늘 날짜 선택 제한
+                  min={getMinDate()} // 과거 및 마감된 오늘 날짜 선택 제한 (로컬 시간 적용됨)
                   onChange={(e) => setDate(e.target.value)}
                 />
               </div>

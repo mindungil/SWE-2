@@ -13,15 +13,19 @@ export default function LaptopBooking() {
   const toast = useToast();
   const { addReservation } = useStore();
 
-  // 16시 이후 접속 시 오늘 예약은 더 이상 불가능하므로 내일 날짜를 최소값으로 설정
   const getMinDate = () => {
     const now = new Date();
+    // 16시 이후라면 내일 날짜를 계산
     if (now.getHours() >= 16) {
-      const tomorrow = new Date(now);
-      tomorrow.setDate(now.getDate() + 1);
-      return tomorrow.toISOString().slice(0, 10);
+      now.setDate(now.getDate() + 1);
     }
-    return now.toISOString().slice(0, 10);
+    
+    // YYYY-MM-DD 포맷을 로컬 시간 기준으로 직접 조합
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    
+    return `${year}-${month}-${day}`;
   };
 
   const [date, setDate] = useState(() => getMinDate());
@@ -67,7 +71,12 @@ export default function LaptopBooking() {
   const availableStartHours = useMemo(() => {
     const allHours = Array.from({ length: 8 }, (_, i) => 9 + i); // 09:00 ~ 16:00 기본 선택지
     const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
+    
+    // todayStr 비교 시에도 로컬 시간 기준 포맷 사용
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const todayStr = `${year}-${month}-${day}`;
   
     // 선택한 날짜가 오늘인 경우에만 시간 필터링 적용
     if (date === todayStr) {
