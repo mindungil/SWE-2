@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import Header from "../ui/Header";
 import "../styles/app.css";
 import { useToast } from "../ui/Toast";
@@ -22,7 +22,14 @@ export default function RoomBooking() {
     Array.from({ length: 5 }, () => ({ name: "", studentId: "" })) // 본인 제외 최대 5명 입력
   );
 
-  const hours = useMemo(() => Array.from({ length: 10 }, (_, i) => 9 + i), []);
+  const availableStartHours = useMemo(() => Array.from({ length: 9 }, (_, i) => 9 + i), []); // 09시 ~ 17시
+
+  useEffect(() => {
+    // 17시에 시작하면 2시간 예약은 불가능하므로 1시간으로 강제 변경
+    if (startHour >= 17 && duration === 2) {
+      setDuration(1);
+    }
+  }, [startHour, duration]);
 
   // 실패 케이스에도 filled를 항상 포함시켜서 v.filled 타입 오류 제거
   const validParty = ():
@@ -68,7 +75,7 @@ const submit = async (e: React.FormEvent) => {
         date: date,
         start_time: startTimeStr,
         end_time: endTimeStr,
-        companions: v.filled, // [{ name: "...", student_id: "..." }, ...]
+        companions: v.filled.map(p => ({ name: p.name, student_id: p.studentId })),
       }),
     });
 
@@ -124,7 +131,7 @@ const submit = async (e: React.FormEvent) => {
                   value={startHour}
                   onChange={(e) => setStartHour(Number(e.target.value))}
                 >
-                  {hours.map((h) => (
+                  {availableStartHours.map((h) => (
                     <option key={h} value={h}>
                       {String(h).padStart(2, "0")}:00
                     </option>
@@ -142,7 +149,7 @@ const submit = async (e: React.FormEvent) => {
                   onChange={(e) => setDuration(Number(e.target.value) as 1 | 2)}
                 >
                   <option value={1}>1시간</option>
-                  <option value={2}>2시간</option>
+                  {startHour < 17 && <option value={2}>2시간</option>}
                 </select>
               </div>
               <div className="field">

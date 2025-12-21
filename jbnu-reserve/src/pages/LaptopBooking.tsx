@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import Header from "../ui/Header";
 import "../styles/app.css";
 import { useToast } from "../ui/Toast";
 import { useStore } from "../state/store";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api/client";
+
+interface SeatStatus { resource_number: number; is_available: boolean; }
 
 export default function LaptopBooking() {
   const nav = useNavigate();
@@ -15,11 +17,37 @@ export default function LaptopBooking() {
   const [startHour, setStartHour] = useState(9);
   const [duration, setDuration] = useState<2 | 4>(2);
 
+  const [seatStatuses, setSeatStatuses] = useState<SeatStatus[]>([]); // 서버 좌석 상태 저장
+  const [loading, setLoading] = useState(true); // 로딩 상태
+
+  // 시작 시간에 따른 이용 가능 시간(duration) 강제 조정
+  useEffect(() => {
+    if (startHour >= 15 && duration === 4) {
+      setDuration(2); // 15시 이후엔 4시간 예약이 불가능하므로 2시간으로 강제 변경
+    }
+  }, [startHour, duration]);
+
+  // 실시간 좌석 상태를 서버에서 가져오는 함수
+  const fetchStatus = async () => {
+    setLoading(true);
+    try {
+      const response = await apiFetch(`/api/overview?date=${date}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSeatStatuses(data.laptop_seats); //
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchStatus(); }, [date]); // 날짜 바뀔 때마다 갱신
+
   const [page, setPage] = useState<1 | 2>(1);
   const seats = useMemo(() => Array.from({ length: 70 }, (_, i) => i + 1), []);
   const shown = seats.filter(s => (page === 1 ? s <= 35 : s >= 36));
 
-  const hours = useMemo(() => Array.from({ length: 10 }, (_, i) => 9 + i), []);
+  const availableStartHours = useMemo(() => Array.from({ length: 8 }, (_, i) => 9 + i), []);
 
   const bookSeat = async (seatNo: number, isRandom: boolean) => {
     const startTimeStr = `${String(startHour).padStart(2, "0")}:00`;
@@ -83,7 +111,7 @@ export default function LaptopBooking() {
             <div className="field">
               <div className="label">시작</div>
               <select className="input" value={startHour} onChange={(e) => setStartHour(Number(e.target.value))}>
-                {hours.map(h => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
+                {availableStartHours.map(h => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
               </select>
             </div>
           </div>
@@ -93,7 +121,7 @@ export default function LaptopBooking() {
               <div className="label">시간(2시간 단위)</div>
               <select className="input" value={duration} onChange={(e) => setDuration(Number(e.target.value) as 2 | 4)}>
                 <option value={2}>2시간</option>
-                <option value={4}>4시간</option>
+                {startHour < 15 && <option value={4}>4시간</option>}
               </select>
             </div>
             <div className="field">
@@ -112,27 +140,31 @@ export default function LaptopBooking() {
           <div className="card" style={{ background: "#f8fafc" }}>
             <div className="cardTitle" style={{ fontSize: 14, marginBottom: 10 }}>좌석 선택 (초록=가능 / 빨강=불가)</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
-              {shown.map(seat => (
-                <button
-                  key={seat}
-                  type="button"
-                  className="btn"
-                  style={{
-                    height: 44,
-                    borderRadius: 12,
-                    background: "#16a34a",
-                    color: "#fff",
-                    fontWeight: 900,
-                  }}
-                  onClick={() => bookSeat(seat, false)}
-                >
-                  {seat}
-                </button>
-              ))}
+              {shown.map(seat => {
+                // 해당 좌석의 사용 가능 여부 확인
+                const status = seatStatuses.find(s => s.resource_number === seat);
+                const isAvailable = status ? status.is_available : false;
+
+                return (
+                  <button
+                    key={seat}
+                    disabled={!isAvailable || loading} // 예약 불가면 클릭 막기
+                    className="btn"
+                    style={{
+                      height: 44,
+                      borderRadius: 12,
+                      background: isAvailable ? "#16a34a" : "#dc2626", // 가능 = 초록, 불가 = 빨강
+                      color: "#fff",
+                      opacity: isAvailable ? 1 : 0.6,
+                      cursor: isAvailable ? "pointer" : "not-allowed"
+                    }}
+                    onClick={() => bookSeat(seat, false)}
+                  >
+                    {seat}
+                  </button>
+                );
+              })}
             </div>
-            <p className="cardDesc" style={{ marginTop: 10 }}>
-              * 실제 예약 가능/불가는 서버 연동 후 반영됩니다. (지금은 UI 확인용)
-            </p>
           </div>
         </div>
       </div>
