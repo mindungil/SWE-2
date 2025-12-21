@@ -18,6 +18,7 @@ interface Booking {
 export default function Profile() {
   const nav = useNavigate();
   const toast = useToast();
+  // 초기값을 확실한 빈 배열로 선언
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,7 +28,16 @@ export default function Profile() {
       const response = await apiFetch("/api/my-bookings?status=CONFIRMED");
       if (response.ok) {
         const data = await response.json();
-        setBookings(data.bookings);
+
+        // 방어 로직: data.bookings가 없으면 빈 배열([])을 넣어서 렌더링 에러 방지
+        if (data.bookings && Array.isArray(data.bookings)) {
+          setBookings(data.bookings);
+        } else if (Array.isArray(data)) {
+          // 혹시라도 서버가 { bookings: [...] } 형태가 아니라 [...] 배열 자체를 줄 경우 대비
+          setBookings(data);
+        } else {
+          setBookings([]); // 데이터가 이상하면 빈 목록 처리
+        }
       }
     } catch (error) {
       toast("내역을 불러오는데 실패했습니다.", "bad");
@@ -55,7 +65,6 @@ export default function Profile() {
         toast("예약이 취소되었습니다.", "ok");
         fetchBookings(); // 목록 새로고침
       } else {
-        // 취소 불가 시간(2시간 이내) 등 에러 메시지 처리
         toast(data.detail || "취소할 수 없는 예약입니다.", "bad");
       }
     } catch (error) {
@@ -64,6 +73,7 @@ export default function Profile() {
   };
 
   const formatTime = (isoStr: string) => {
+    if (!isoStr) return "--:--"; // 날짜 데이터 없을 때 방어
     const d = new Date(isoStr);
     return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   };
@@ -76,7 +86,7 @@ export default function Profile() {
           <h2 className="cardTitle">개인 예약조회</h2>
           {loading ? (
             <div className="cardDesc">불러오는 중...</div>
-          ) : bookings.length === 0 ? (
+          ) : !bookings || bookings.length === 0 ? ( // bookings가 null/undefined일 경우 대비
             <div className="cardDesc">예약 내역이 없습니다.</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -95,7 +105,8 @@ export default function Profile() {
                     </button>
                   </div>
                   <div className="cardDesc" style={{ marginTop: 6 }}>
-                    {b.start_time.split("T")[0]} · {formatTime(b.start_time)} ~ {formatTime(b.end_time)}
+                    {/* start_time이 있을 때만 split 실행 */}
+                    {b.start_time ? b.start_time.split("T")[0] : ""} · {formatTime(b.start_time)} ~ {formatTime(b.end_time)}
                   </div>
                 </div>
               ))}

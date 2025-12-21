@@ -6,6 +6,7 @@ import { useStore } from "../state/store";
 import { apiFetch } from "../api/client";
 
 interface OverviewData {
+  name: string;
   meeting_rooms: any[];
   laptop_seats: { resource_number: number; is_available: boolean }[];
 }
@@ -15,7 +16,14 @@ export default function Home() {
   const { logout, user } = useStore();
   const [status, setStatus] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
-  const today = new Date().toISOString().split('T')[0];
+
+  // 현재 시간 및 날짜 관련 로직 추가
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  
+  // 운영 시간 여부 판단 (09:00 ~ 18:00)
+  const isOperating = now.getHours() >= 9 && now.getHours() < 18;
 
   const handleLogout = async () => {
     try {
@@ -25,14 +33,13 @@ export default function Home() {
     } finally {
       localStorage.removeItem("access_token"); 
       logout(); 
-      nav("/"); // 로그인 페이지로 이동
+      nav("/"); 
     }
   };
 
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        // 실시간 현황 조회 호출
         const response = await apiFetch(`/api/overview?date=${today}`);
         if (response.ok) {
           const data = await response.json();
@@ -44,11 +51,9 @@ export default function Home() {
         setLoading(false);
       }
     };
-
     fetchStatus();
   }, [today]);
 
-  // 가용 좌석 계산
   const availableLaptops = status?.laptop_seats.filter(s => s.is_available).length || 0;
 
   return (
@@ -56,18 +61,31 @@ export default function Home() {
       <Header small />
       <div className="container">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "12px 0" }}>
-          <div style={{ fontWeight: 900 }}>안녕하세요, {user?.studentId}님</div>
-            <button className="btn btnGhost" style={{ height: 38, padding: "0 12px", borderRadius: 12 }} onClick={handleLogout}>
+          {/* 서버에서 받은 name 우선 표시, 없으면 studentId 표시 */}
+          <div style={{ fontWeight: 900 }}>
+            안녕하세요, {status?.name || user?.studentId}님
+          </div>
+          <button className="btn btnGhost" style={{ height: 38, padding: "0 12px", borderRadius: 12 }} onClick={handleLogout}>
             로그아웃
-            </button>
+          </button>
+        </div>
+
+        {/* 실시간 현황 요약 카드 */}
+        <div className="card" style={{ marginBottom: 16, padding: "12px 16px", backgroundColor: "#f8f9fa", border: "none" }}>
+          {/* 기준 시간(HH:MM) 표시 반영 */}
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "var(--muted)" }}>
+            실시간 예약 현황 ({today} {currentTimeStr} 기준)
           </div>
 
-        {/* 실시간 현황 요약 */}
-        <div className="card" style={{ marginBottom: 16, padding: "12px 16px", backgroundColor: "#f8f9fa", border: "none" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "var(--muted)" }}>실시간 예약 현황 ({today})</div>
           {loading ? (
             <div style={{ fontSize: 14 }}>현황 불러오는 중...</div>
+          ) : !isOperating ? (
+            /* 운영 시간 외 안내 문구 추가 */
+            <div style={{ fontWeight: 800, color: "var(--bad)", fontSize: 14, padding: "4px 0" }}>
+              현재 이용 가능 시간이 아닙니다 (운영시간 09:00 ~ 18:00)
+            </div>
           ) : (
+            /* 운영 시간 내에만 현황 노출 */
             <div style={{ display: "flex", gap: "16px" }}>
               <div>
                 <span style={{ fontSize: 12 }}>회의실</span>

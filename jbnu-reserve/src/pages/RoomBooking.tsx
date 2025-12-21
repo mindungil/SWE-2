@@ -13,25 +13,59 @@ export default function RoomBooking() {
   const toast = useToast();
   const { addReservation } = useStore();
 
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const getMinDate = () => {
+    const now = new Date();
+    // 17시 이후라면 내일 날짜를 계산 (회의실은 17시 마감)
+    if (now.getHours() >= 17) {
+      now.setDate(now.getDate() + 1);
+    }
+    
+    // YYYY-MM-DD 포맷을 로컬 시간 기준으로 직접 조합
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    
+    return `${year}-${month}-${day}`;
+  };
+
+  const [date, setDate] = useState(() => getMinDate());
   const [startHour, setStartHour] = useState(9);
   const [duration, setDuration] = useState<1 | 2>(1);
   const [roomNo, setRoomNo] = useState<1 | 2 | 3>(1);
 
   const [party, setParty] = useState<PartyMember[]>(
-    Array.from({ length: 5 }, () => ({ name: "", studentId: "" })) // 본인 제외 최대 5명 입력
+    Array.from({ length: 5 }, () => ({ name: "", studentId: "" }))
   );
 
-  const availableStartHours = useMemo(() => Array.from({ length: 9 }, (_, i) => 9 + i), []); // 09시 ~ 17시
+  // todayStr 비교 시에도 로컬 시간 기준 포맷 사용
+  const availableStartHours = useMemo(() => {
+    const allHours = Array.from({ length: 9 }, (_, i) => 9 + i);
+    const now = new Date();
+    
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const todayStr = `${year}-${month}-${day}`;
+
+    if (date === todayStr) {
+      const currentHour = now.getHours();
+      return allHours.filter(h => h > currentHour); 
+    }
+    return allHours;
+  }, [date]);
 
   useEffect(() => {
-    // 17시에 시작하면 2시간 예약은 불가능하므로 1시간으로 강제 변경
+    if (availableStartHours.length > 0 && !availableStartHours.includes(startHour)) {
+      setStartHour(availableStartHours[0]);
+    }
+  }, [availableStartHours, startHour]);
+
+  useEffect(() => {
     if (startHour >= 17 && duration === 2) {
       setDuration(1);
     }
   }, [startHour, duration]);
 
-  // 실패 케이스에도 filled를 항상 포함시켜서 v.filled 타입 오류 제거
   const validParty = ():
     | { ok: true; filled: PartyMember[] }
     | { ok: false; msg: string; filled: PartyMember[] } => {
@@ -40,7 +74,6 @@ export default function RoomBooking() {
       .map((p) => ({ name: p.name.trim(), studentId: p.studentId.trim() }))
       .filter((p) => p.name || p.studentId);
 
-    // 최소 2명 동반 => 본인 포함 총 3명 이상이 되려면, 동반 입력 2명 이상 필요
     if (filled.length < 2) {
       return { ok: false, msg: "동반 인원 최소 2명을 입력하세요. (본인 포함 3명)", filled: [] };
     }
@@ -58,43 +91,40 @@ export default function RoomBooking() {
     return { ok: true, filled };
   };
 
-// 내부 submit 함수 수정
-const submit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  const v = validParty();
-  if (!v.ok) return toast(v.msg, "bad");
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const v = validParty();
+    if (!v.ok) return toast(v.msg, "bad");
 
-  const startTimeStr = `${String(startHour).padStart(2, "0")}:00`;
-  const endTimeStr = `${String(startHour + duration).padStart(2, "0")}:00`;
+    const startTimeStr = `${String(startHour).padStart(2, "0")}:00`;
+    const endTimeStr = `${String(startHour + duration).padStart(2, "0")}:00`;
 
-  try {
-    const response = await apiFetch("/api/meeting-rooms/bookings", {
-      method: "POST",
-      body: JSON.stringify({
-        room_number: roomNo,
-        date: date,
-        start_time: startTimeStr,
-        end_time: endTimeStr,
-        companions: v.filled.map(p => ({ name: p.name, student_id: p.studentId })),
-      }),
-    });
+    try {
+      const response = await apiFetch("/api/meeting-rooms/bookings", {
+        method: "POST",
+        body: JSON.stringify({
+          room_number: roomNo,
+          date: date,
+          start_time: startTimeStr,
+          end_time: endTimeStr,
+          companions: v.filled.map(p => ({ name: p.name, student_id: p.studentId })),
+        }),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (response.status === 201) {
-      // 성공
-      toast("회의실 예약이 완료되었습니다!", "ok");
-      nav("/profile");
-    } else if (response.status === 409) {
-      // 실패
-      toast(data.detail || "예약 조건에 맞지 않습니다.", "bad");
-    } else {
-      toast(data.detail || "예약에 실패했습니다.", "bad");
+      if (response.status === 201) {
+        toast("회의실 예약이 완료되었습니다!", "ok");
+        nav("/profile");
+      } else if (response.status === 409) {
+        toast(data.detail || "예약 조건에 맞지 않습니다.", "bad");
+      } else {
+        toast(data.detail || "예약에 실패했습니다.", "bad");
+      }
+    } catch (error) {
+      toast("서버와 통신 중 오류가 발생했습니다.", "bad");
     }
-  } catch (error) {
-    toast("서버와 통신 중 오류가 발생했습니다.", "bad");
-  }
-};
+  };
 
   return (
     <div className="page">
@@ -121,6 +151,7 @@ const submit = async (e: React.FormEvent) => {
                   className="input"
                   type="date"
                   value={date}
+                  min={getMinDate()}
                   onChange={(e) => setDate(e.target.value)}
                 />
               </div>
@@ -131,11 +162,15 @@ const submit = async (e: React.FormEvent) => {
                   value={startHour}
                   onChange={(e) => setStartHour(Number(e.target.value))}
                 >
-                  {availableStartHours.map((h) => (
-                    <option key={h} value={h}>
-                      {String(h).padStart(2, "0")}:00
-                    </option>
-                  ))}
+                  {availableStartHours.length > 0 ? (
+                    availableStartHours.map((h) => (
+                      <option key={h} value={h}>
+                        {String(h).padStart(2, "0")}:00
+                      </option>
+                    ))
+                  ) : (
+                    <option disabled>예약 마감</option>
+                  )}
                 </select>
               </div>
             </div>
@@ -170,13 +205,14 @@ const submit = async (e: React.FormEvent) => {
 
             <div className="card" style={{ marginTop: 12, background: "#f8fafc" }}>
               <div className="cardTitle" style={{ fontSize: 14 }}>
-                동반 인원 입력 (본인 제외 최대 5명)
+                동반 인원 입력 (본인 포함 최대 6명)
               </div>
               <div className="cardDesc">최소 2명 입력 필요 (본인 포함 3명)</div>
 
               {party.map((p, idx) => (
                 <div className="row" key={idx}>
-                  <div className="field">
+                  {/* style={{ flex: 1 }} 추가로 너비 균등 분배 및 삐져나감 방지 */}
+                  <div className="field" style={{ flex: 1 }}>
                     <div className="label">이름</div>
                     <input
                       className="input"
@@ -187,9 +223,11 @@ const submit = async (e: React.FormEvent) => {
                         setParty(next);
                       }}
                       placeholder="홍길동"
+                      style={{ width: "100%" }} // input도 부모에 맞춤
                     />
                   </div>
-                  <div className="field">
+                  {/* style={{ flex: 1 }} 추가 */}
+                  <div className="field" style={{ flex: 1 }}>
                     <div className="label">학번(9자리)</div>
                     <input
                       className="input"
@@ -201,6 +239,7 @@ const submit = async (e: React.FormEvent) => {
                       }}
                       placeholder="202012345"
                       inputMode="numeric"
+                      style={{ width: "100%" }} // input도 부모에 맞춤
                     />
                   </div>
                 </div>
@@ -211,8 +250,9 @@ const submit = async (e: React.FormEvent) => {
               className="btn btnBlue"
               style={{ width: "100%", marginTop: 12 }}
               type="submit"
+              disabled={availableStartHours.length === 0}
             >
-              예약하기
+              {availableStartHours.length > 0 ? "예약하기" : "예약 가능한 시간이 없습니다"}
             </button>
           </form>
         </div>
