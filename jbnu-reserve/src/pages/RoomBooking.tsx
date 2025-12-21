@@ -4,6 +4,7 @@ import "../styles/app.css";
 import { useToast } from "../ui/Toast";
 import { useStore } from "../state/store";
 import { useNavigate } from "react-router-dom";
+import { apiFetch } from "../api/client";
 
 type PartyMember = { name: string; studentId: string };
 
@@ -23,7 +24,7 @@ export default function RoomBooking() {
 
   const hours = useMemo(() => Array.from({ length: 10 }, (_, i) => 9 + i), []);
 
-  // ✅ 실패 케이스에도 filled를 항상 포함시켜서 v.filled 타입 오류 제거
+  // 실패 케이스에도 filled를 항상 포함시켜서 v.filled 타입 오류 제거
   const validParty = ():
     | { ok: true; filled: PartyMember[] }
     | { ok: false; msg: string; filled: PartyMember[] } => {
@@ -50,24 +51,43 @@ export default function RoomBooking() {
     return { ok: true, filled };
   };
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const v = validParty();
-    if (!v.ok) return toast(v.msg, "bad");
+// 내부 submit 함수 수정
+const submit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  const v = validParty();
+  if (!v.ok) return toast(v.msg, "bad");
 
-    const res = addReservation({
-      id: crypto.randomUUID(),
-      type: "room",
-      date,
-      startHour,
-      durationHours: duration,
-      roomNo,
-      party: [{ name: "(본인)", studentId: "(self)" }, ...v.filled],
+  const startTimeStr = `${String(startHour).padStart(2, "0")}:00`;
+  const endTimeStr = `${String(startHour + duration).padStart(2, "0")}:00`;
+
+  try {
+    const response = await apiFetch("/api/meeting-rooms/bookings", {
+      method: "POST",
+      body: JSON.stringify({
+        room_number: roomNo,
+        date: date,
+        start_time: startTimeStr,
+        end_time: endTimeStr,
+        companions: v.filled, // [{ name: "...", student_id: "..." }, ...]
+      }),
     });
 
-    toast(res.msg, res.ok ? "ok" : "bad");
-    if (res.ok) nav("/profile");
-  };
+    const data = await response.json();
+
+    if (response.status === 201) {
+      // 성공
+      toast("회의실 예약이 완료되었습니다!", "ok");
+      nav("/profile");
+    } else if (response.status === 409) {
+      // 실패
+      toast(data.detail || "예약 조건에 맞지 않습니다.", "bad");
+    } else {
+      toast(data.detail || "예약에 실패했습니다.", "bad");
+    }
+  } catch (error) {
+    toast("서버와 통신 중 오류가 발생했습니다.", "bad");
+  }
+};
 
   return (
     <div className="page">
