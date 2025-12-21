@@ -136,9 +136,7 @@ def create_meeting_room_booking(
     week_start = _combine_datetime(week_start_date, time.min)
     week_end = _combine_datetime(week_end_date, time.min)
 
-    participants_for_limits = [current_user, *companions]
-    for participant in participants_for_limits:
-        _enforce_user_meeting_limits(db, participant, start_dt, end_dt, day_start, day_end, week_start, week_end)
+    _enforce_user_meeting_limits(db, current_user, start_dt, end_dt, day_start, day_end, week_start, week_end)
 
     booking = Booking(
         facility_id=facility.id,

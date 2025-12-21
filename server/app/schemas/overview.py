@@ -16,8 +16,8 @@ class MeetingRoomStatus(BaseModel):
 
 
 class LaptopSeatStatus(BaseModel):
-    seat_number: int = Field(..., examples=[37])
-    status: ResourceStatus
+    resource_number: int = Field(..., examples=[37])
+    is_available: bool = Field(..., examples=[True])
 
 
 class OverviewResponse(BaseModel):

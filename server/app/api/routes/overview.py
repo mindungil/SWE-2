@@ -66,8 +66,8 @@ def get_overview(
     ]
     laptop_seat_statuses = [
         LaptopSeatStatus(
-            seat_number=seat.resource_number,
-            status=ResourceStatus.BOOKED if _is_booked_for_time(db, seat.id, target_dt) else ResourceStatus.AVAILABLE,
+            resource_number=seat.resource_number,
+            is_available=not _is_booked_for_time(db, seat.id, target_dt),
         )
         for seat in laptop_seats
     ]
