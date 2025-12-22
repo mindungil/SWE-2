@@ -1,8 +1,7 @@
-import React, { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Header from "../ui/Header";
 import "../styles/app.css";
 import { useToast } from "../ui/Toast";
-import { useStore } from "../state/store";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api/client";
 
@@ -11,7 +10,6 @@ interface SeatStatus { resource_number: number; is_available: boolean; }
 export default function LaptopBooking() {
   const nav = useNavigate();
   const toast = useToast();
-  const { addReservation } = useStore();
 
   const getMinDate = () => {
     const now = new Date();
@@ -29,7 +27,6 @@ export default function LaptopBooking() {
   };
 
   const [date, setDate] = useState(() => getMinDate());
-  const [startHour, setStartHour] = useState(9);
   const [duration, setDuration] = useState<2 | 4>(2);
 
   const [seatStatuses, setSeatStatuses] = useState<SeatStatus[]>([]); // 서버 좌석 상태 저장
@@ -39,35 +36,6 @@ export default function LaptopBooking() {
     seatNo: number;
     isRandom: boolean;
   }>({ open: false, seatNo: 0, isRandom: false });
-
-  // 시작 시간에 따른 이용 가능 시간(duration) 강제 조정
-  useEffect(() => {
-    if (startHour >= 15 && duration === 4) {
-      setDuration(2); // 15시 이후엔 4시간 예약이 불가능하므로 2시간으로 강제 변경
-    }
-  }, [startHour, duration]);
-
-  // 실시간 좌석 상태를 서버에서 가져오는 함수
-  const fetchStatus = async () => {
-    setLoading(true);
-    try {
-      // 특정 날짜/시간/기간에 따른 가용 좌석 조회
-      const startTimeStr = `${String(startHour).padStart(2, "0")}:00`;
-      const response = await apiFetch(`/api/laptop_seats?date=${date}&start_time=${startTimeStr}&duration=${duration}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        // 응답 데이터의 available_seats 배열을 상태에 저장
-        setSeatStatuses(data.available_seats); 
-      }
-    } catch (error) {
-      toast("좌석 현황을 불러오는데 실패했습니다.", "bad");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchStatus(); }, [date, startHour, duration]);
 
   const [page, setPage] = useState<1 | 2>(1);
   const seats = useMemo(() => Array.from({ length: 70 }, (_, i) => i + 1), []);
@@ -93,12 +61,66 @@ export default function LaptopBooking() {
     return allHours;
   }, [date]); // 날짜가 바뀔 때마다 다시 계산
 
+  // 초기 startHour를 availableStartHours의 첫 번째 값으로 설정
+  const [startHour, setStartHour] = useState(() => {
+    const allHours = Array.from({ length: 8 }, (_, i) => 9 + i);
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const todayStr = `${year}-${month}-${day}`;
+    const initialDate = getMinDate();
+    
+    if (initialDate === todayStr) {
+      const currentHour = now.getHours();
+      const filtered = allHours.filter(h => h > currentHour);
+      return filtered.length > 0 ? filtered[0] : 9;
+    }
+    return 9;
+  });
+
+  // 시작 시간에 따른 이용 가능 시간(duration) 강제 조정
+  useEffect(() => {
+    if (startHour >= 15 && duration === 4) {
+      setDuration(2); // 15시 이후엔 4시간 예약이 불가능하므로 2시간으로 강제 변경
+    }
+  }, [startHour, duration]);
+
   // 날짜나 시간이 바뀌었을 때, 현재 시점보다 과거라면 가능한 첫 번째 시간으로 자동 보정
   useEffect(() => {
     if (availableStartHours.length > 0 && !availableStartHours.includes(startHour)) {
       setStartHour(availableStartHours[0]); // 선택 가능한 가장 빠른 시간으로 자동 세팅
     }
-  }, [availableStartHours, startHour]);
+  }, [availableStartHours]); // startHour를 의존성에서 제거하여 무한 루프 방지
+
+  // 실시간 좌석 상태를 서버에서 가져오는 함수
+  const fetchStatus = async () => {
+    setLoading(true);
+    try {
+      // 특정 날짜/시간/기간에 따른 가용 좌석 조회
+      const startTimeStr = `${String(startHour).padStart(2, "0")}:00`;
+      const response = await apiFetch(`/api/laptop_seats?date=${date}&start_time=${startTimeStr}&duration=${duration}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        // 응답 데이터의 available_seats 배열을 상태에 저장
+        setSeatStatuses(data.available_seats); 
+      }
+    } catch (error) {
+      toast("좌석 현황을 불러오는데 실패했습니다.", "bad");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { 
+    // availableStartHours가 준비되었고, startHour가 유효한 시간인 경우에만 호출
+    // availableStartHours가 비어있으면 (예: 예약 마감) 호출하지 않음
+    // startHour가 availableStartHours에 포함되어 있지 않으면 호출하지 않음 (보정 중이므로)
+    if (availableStartHours.length > 0 && availableStartHours.includes(startHour)) {
+      fetchStatus(); 
+    }
+  }, [date, startHour, duration, availableStartHours]);
 
   const handleSeatClick = (seatNo: number, isRandom: boolean) => {
     setConfirmModal({ open: true, seatNo, isRandom });
