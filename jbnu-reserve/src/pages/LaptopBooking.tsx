@@ -34,6 +34,11 @@ export default function LaptopBooking() {
 
   const [seatStatuses, setSeatStatuses] = useState<SeatStatus[]>([]); // 서버 좌석 상태 저장
   const [loading, setLoading] = useState(true); // 로딩 상태
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean;
+    seatNo: number;
+    isRandom: boolean;
+  }>({ open: false, seatNo: 0, isRandom: false });
 
   // 시작 시간에 따른 이용 가능 시간(duration) 강제 조정
   useEffect(() => {
@@ -95,6 +100,10 @@ export default function LaptopBooking() {
     }
   }, [availableStartHours, startHour]);
 
+  const handleSeatClick = (seatNo: number, isRandom: boolean) => {
+    setConfirmModal({ open: true, seatNo, isRandom });
+  };
+
   const bookSeat = async (seatNo: number, isRandom: boolean) => {
     const startTimeStr = `${String(startHour).padStart(2, "0")}:00`;
     const endTimeStr = `${String(startHour + duration).padStart(2, "0")}:00`;
@@ -131,8 +140,17 @@ export default function LaptopBooking() {
     }
   };
 
+  const handleConfirm = () => {
+    bookSeat(confirmModal.seatNo, confirmModal.isRandom);
+    setConfirmModal({ open: false, seatNo: 0, isRandom: false });
+  };
+
+  const handleCancel = () => {
+    setConfirmModal({ open: false, seatNo: 0, isRandom: false });
+  };
+
   const randomPick = () => {
-    bookSeat(0, true); // 랜덤일 때는 seatNo가 의미 없으므로 0 전달
+    handleSeatClick(0, true); // 랜덤일 때는 seatNo가 의미 없으므로 0 전달
   };
 
   return (
@@ -222,7 +240,7 @@ export default function LaptopBooking() {
                           opacity: isAvailable ? 1 : 0.6,
                           cursor: isAvailable ? "pointer" : "not-allowed"
                         }}
-                        onClick={() => bookSeat(seat, false)}
+                        onClick={() => handleSeatClick(seat, false)}
                       >
                         {seat}
                       </button>
@@ -241,6 +259,72 @@ export default function LaptopBooking() {
           </div>
         </div>
       </div>
+
+      {/* 확인 모달 */}
+      {confirmModal.open && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "14px",
+          }}
+          onClick={handleCancel}
+        >
+          <div
+            className="card"
+            style={{
+              maxWidth: "420px",
+              width: "100%",
+              margin: "0 auto",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="cardTitle" style={{ marginBottom: 12 }}>
+              {confirmModal.isRandom ? "랜덤 예약 확인" : "예약 확인"}
+            </h2>
+            <div style={{ marginBottom: 20, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 14, color: "var(--text)", marginBottom: 8 }}>
+                <strong>날짜:</strong> {date}
+              </div>
+              <div style={{ fontSize: 14, color: "var(--text)", marginBottom: 8 }}>
+                <strong>시간:</strong> {String(startHour).padStart(2, "0")}:00 ~ {String(startHour + duration).padStart(2, "0")}:00
+              </div>
+              <div style={{ fontSize: 14, color: "var(--text)", marginBottom: 8 }}>
+                <strong>기간:</strong> {duration}시간
+              </div>
+              {!confirmModal.isRandom && (
+                <div style={{ fontSize: 14, color: "var(--text)" }}>
+                  <strong>좌석번호:</strong> {confirmModal.seatNo}번
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                className="btn btnGhost"
+                style={{ flex: 1 }}
+                onClick={handleCancel}
+              >
+                취소
+              </button>
+              <button
+                className="btn btnPrimary"
+                style={{ flex: 1 }}
+                onClick={handleConfirm}
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
