@@ -43,18 +43,30 @@ def _enforce_daily_limit(
     day_start = _combine_datetime(start_dt.date(), time.min)
     day_end = _combine_datetime(start_dt.date() + timedelta(days=1), time.min)
 
-    existing_day_bookings = (
-        db.query(Booking)
-        .join(Facility, Booking.facility_id == Facility.id)
-        .filter(
-            Booking.user_student_id == current_user.student_id,
-            Booking.status == BookingStatus.CONFIRMED,
-            Booking.start_time >= day_start,
-            Booking.start_time < day_end,
-            Facility.resource_type == FacilityResourceType.LAPTOP_SEAT,
+    # LAPTOP_SEAT 타입의 facility_id 목록 조회
+    laptop_seat_facility_ids = [
+        facility_id[0]
+        for facility_id in (
+            db.query(Facility.id)
+            .filter(Facility.resource_type == FacilityResourceType.LAPTOP_SEAT)
+            .all()
         )
-        .all()
+    ]
+
+    query = db.query(Booking).filter(
+        Booking.user_student_id == current_user.student_id,
+        Booking.status == BookingStatus.CONFIRMED,
+        Booking.start_time >= day_start,
+        Booking.start_time < day_end,
     )
+    
+    if laptop_seat_facility_ids:
+        query = query.filter(Booking.facility_id.in_(laptop_seat_facility_ids))
+    else:
+        # LAPTOP_SEAT가 없으면 빈 결과 반환
+        query = query.filter(False)
+    
+    existing_day_bookings = query.all()
 
     limit_hours = 4
     if current_user.daily_limit_laptop:

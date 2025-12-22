@@ -62,7 +62,7 @@ def upgrade() -> None:
 
     op.create_table(
         "bookings",
-        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("facility_id", sa.Integer(), nullable=False),
         sa.Column("user_student_id", sa.String(length=10), nullable=False),
         sa.Column("start_time", sa.DateTime(), nullable=False),
@@ -83,8 +83,8 @@ def upgrade() -> None:
 
     op.create_table(
         "booking_participants",
-        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
-        sa.Column("booking_id", sa.BigInteger(), nullable=False),
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("booking_id", sa.Integer(), nullable=False),
         sa.Column("student_id", sa.String(length=20), nullable=False),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["booking_id"], ["bookings.id"], ondelete="CASCADE"),

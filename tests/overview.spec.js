@@ -8,14 +8,33 @@ const { test, expect } = require('@playwright/test');
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8000';
 
+// 헬퍼 함수: 로그인하여 토큰 획득
+async function getAuthToken(request, studentId = '202519198', birth = '2006-05-22') {
+  const response = await request.post(`${BASE_URL}/api/login`, {
+    data: {
+      student_id: studentId,
+      birth: birth,
+    },
+  });
+  expect(response.status()).toBe(200);
+  const body = await response.json();
+  return body.access_token;
+}
+
 test.describe('오버뷰 테스트', () => {
   test('TC-OV-001: 오버뷰 조회 성공', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/overview?date=2026-02-19`);
+    const token = await getAuthToken(request);
+    const response = await request.get(`${BASE_URL}/api/overview?date=2026-02-19`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     expect(response.status()).toBe(200);
     const body = await response.json();
     expect(body).toHaveProperty('date');
     expect(body).toHaveProperty('checked_at');
+    expect(body).toHaveProperty('name');
     expect(body).toHaveProperty('meeting_rooms');
     expect(body).toHaveProperty('laptop_seats');
     
@@ -34,16 +53,21 @@ test.describe('오버뷰 테스트', () => {
     // laptop_seats 검증
     if (body.laptop_seats.length > 0) {
       body.laptop_seats.forEach((seat) => {
-        expect(seat).toHaveProperty('seat_number');
-        expect(seat).toHaveProperty('status');
-        expect(['AVAILABLE', 'BOOKED']).toContain(seat.status);
+        expect(seat).toHaveProperty('resource_number');
+        expect(seat).toHaveProperty('is_available');
+        expect(typeof seat.is_available).toBe('boolean');
       });
     }
   });
 
   test('TC-OV-002: 오버뷰 조회 성공 - 모든 좌석 사용 가능', async ({ request }) => {
     // 예약이 없는 날짜로 테스트
-    const response = await request.get(`${BASE_URL}/api/overview?date=2026-02-19`);
+    const token = await getAuthToken(request);
+    const response = await request.get(`${BASE_URL}/api/overview?date=2026-02-19`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     expect(response.status()).toBe(200);
     const body = await response.json();
@@ -56,7 +80,9 @@ test.describe('오버뷰 테스트', () => {
     });
 
     body.laptop_seats.forEach((seat) => {
-      expect(['AVAILABLE', 'BOOKED']).toContain(seat.status);
+      expect(seat).toHaveProperty('resource_number');
+      expect(seat).toHaveProperty('is_available');
+      expect(typeof seat.is_available).toBe('boolean');
     });
   });
 
@@ -84,14 +110,18 @@ test.describe('오버뷰 테스트', () => {
     });
 
     // 오버뷰 조회
-    const response = await request.get(`${BASE_URL}/api/overview?date=2026-02-19`);
+    const response = await request.get(`${BASE_URL}/api/overview?date=2026-02-19`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     expect(response.status()).toBe(200);
     const body = await response.json();
     
     // 예약된 좌석과 사용 가능한 좌석이 모두 있을 수 있음
-    const bookedSeats = body.laptop_seats.filter((seat) => seat.status === 'BOOKED');
-    const availableSeats = body.laptop_seats.filter((seat) => seat.status === 'AVAILABLE');
+    const bookedSeats = body.laptop_seats.filter((seat) => seat.is_available === false);
+    const availableSeats = body.laptop_seats.filter((seat) => seat.is_available === true);
     
     // 최소한 하나는 BOOKED 또는 AVAILABLE 상태여야 함
     // 시설 데이터가 없으면 빈 배열일 수 있음
@@ -102,13 +132,23 @@ test.describe('오버뷰 테스트', () => {
   });
 
   test('TC-OV-004: 오버뷰 조회 실패 - 날짜 파라미터 누락', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/overview`);
+    const token = await getAuthToken(request);
+    const response = await request.get(`${BASE_URL}/api/overview`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     expect(response.status()).toBe(422);
   });
 
   test('TC-OV-005: 오버뷰 조회 실패 - 잘못된 날짜 형식', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/overview?date=invalid-date`);
+    const token = await getAuthToken(request);
+    const response = await request.get(`${BASE_URL}/api/overview?date=invalid-date`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     expect(response.status()).toBe(422);
   });
