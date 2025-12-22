@@ -148,7 +148,7 @@ export default function LaptopBooking() {
 
       if (response.status === 201) {
         // 성공
-        toast(isRandom ? `랜덤 예약 성공! 좌석: ${data.resource_number}` : "좌석 예약 성공!", "ok");
+        toast(isRandom ? `랜덤 예약 성공! 좌석: ${data.seat_number}` : "좌석 예약 성공!", "ok");
         nav("/home");
       } else if (response.status === 409) {
         // 충돌케이스

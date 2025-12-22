@@ -2,7 +2,7 @@ import random
 from datetime import datetime, time, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import exists, and_, not_
+from sqlalchemy import not_
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -157,25 +157,31 @@ def create_random_laptop_seat_booking(
     if user_overlap:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User has another booking in this slot.")
 
-    overlap_exists = (
-        db.query(Booking.id)
+    # 해당 시간대에 예약이 있는 Facility ID 목록 조회
+    booked_facility_ids = (
+        db.query(Booking.facility_id)
         .filter(
-            Booking.facility_id == Facility.id,
             Booking.status == BookingStatus.CONFIRMED,
             Booking.start_time < end_dt,
             Booking.end_time > start_dt,
         )
+        .distinct()
+        .all()
     )
+    booked_facility_ids = [facility_id[0] for facility_id in booked_facility_ids]
 
-    available_seats = (
+    # 예약되지 않은 좌석 조회
+    query = (
         db.query(Facility)
         .filter(
             Facility.resource_type == FacilityResourceType.LAPTOP_SEAT,
             Facility.is_active.is_(True),
-            not_(exists(overlap_exists)),
         )
-        .all()
     )
+    if booked_facility_ids:
+        query = query.filter(not_(Facility.id.in_(booked_facility_ids)))
+    
+    available_seats = query.all()
 
     if not available_seats:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No available seat for this time.")
