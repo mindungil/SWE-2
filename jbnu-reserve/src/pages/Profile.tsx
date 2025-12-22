@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Header from "../ui/Header";
 import "../styles/app.css";
 import { useNavigate } from "react-router-dom";
@@ -21,6 +21,10 @@ export default function Profile() {
   // 초기값을 확실한 빈 배열로 선언
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancelModal, setCancelModal] = useState<{
+    open: boolean;
+    bookingId: number | null;
+  }>({ open: false, bookingId: null });
 
   // 내 예약 목록 조회
   const fetchBookings = async () => {
@@ -50,12 +54,22 @@ export default function Profile() {
     fetchBookings();
   }, []);
 
-  // 예약 취소
-  const cancel = async (bookingId: number) => {
-    if (!confirm("예약을 취소하시겠습니까?")) return;
+  // 예약 취소 확인 모달 열기
+  const openCancelModal = (bookingId: number) => {
+    setCancelModal({ open: true, bookingId });
+  };
+
+  // 예약 취소 확인 모달 닫기
+  const closeCancelModal = () => {
+    setCancelModal({ open: false, bookingId: null });
+  };
+
+  // 예약 취소 실행
+  const cancel = async () => {
+    if (!cancelModal.bookingId) return;
 
     try {
-      const response = await apiFetch(`/api/my-bookings/${bookingId}`, {
+      const response = await apiFetch(`/api/my-bookings/${cancelModal.bookingId}`, {
         method: "DELETE",
       });
 
@@ -69,6 +83,8 @@ export default function Profile() {
       }
     } catch (error) {
       toast("서버와 통신 중 오류가 발생했습니다.", "bad");
+    } finally {
+      closeCancelModal(); // 어떤 응답이든 모달 닫기
     }
   };
 
@@ -83,7 +99,10 @@ export default function Profile() {
       <Header small />
       <div className="container">
         <div className="card">
-          <h2 className="cardTitle">개인 예약조회</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 0 }}>
+            <h2 className="cardTitle" style={{ marginBottom: 0 }}>개인 예약조회</h2>
+            <button className="btn btnGhost" onClick={() => nav("/home")}>← 홈</button>
+          </div>
           {loading ? (
             <div className="cardDesc">불러오는 중...</div>
           ) : !bookings || bookings.length === 0 ? ( // bookings가 null/undefined일 경우 대비
@@ -99,7 +118,7 @@ export default function Profile() {
                     <button 
                       className="btn btnPrimary" 
                       style={{ height: 36, padding: "0 12px", borderRadius: 12, opacity: b.can_cancel ? 1 : 0.5 }} 
-                      onClick={() => cancel(b.booking_id)}
+                      onClick={() => openCancelModal(b.booking_id)}
                     >
                       취소
                     </button>
@@ -114,6 +133,61 @@ export default function Profile() {
           )}
         </div>
       </div>
+
+      {/* 취소 확인 모달 */}
+      {cancelModal.open && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "14px",
+          }}
+          onClick={closeCancelModal}
+        >
+          <div
+            className="card"
+            style={{
+              maxWidth: "420px",
+              width: "100%",
+              margin: "0 auto",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="cardTitle" style={{ marginBottom: 12 }}>
+              예약 취소 확인
+            </h2>
+            <div style={{ marginBottom: 20, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 14, color: "var(--text)" }}>
+                예약을 취소하시겠습니까?
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                className="btn btnGhost"
+                style={{ flex: 1 }}
+                onClick={closeCancelModal}
+              >
+                취소
+              </button>
+              <button
+                className="btn btnPrimary"
+                style={{ flex: 1 }}
+                onClick={cancel}
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
